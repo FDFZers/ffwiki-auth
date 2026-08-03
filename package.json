@@ -1,0 +1,44 @@
+{
+  "name": "napcat-plugin-ffwiki-auth",
+  "plugin": "ffwiki-auth",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.mjs",
+  "description": "适合复旦附中宝宝体质的认证插件",
+  "author": "Tigercrl",
+  "license": "MIT",
+  "keywords": [
+    "napcat",
+    "plugin",
+    "qq",
+    "template"
+  ],
+  "napcat": {
+    "tags": [
+      "工具"
+    ],
+    "minVersion": "4.14.0",
+    "homepage": ""
+  },
+  "dependencies": {
+    "nanoid": "^6.0.0",
+    "nodemailer": "^9.0.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.3.1",
+    "@types/node": "^20.19.33",
+    "@types/nodemailer": "^8.0.1",
+    "napcat-plugin-debug-cli": "^1.2.8",
+    "napcat-types": "^0.0.17",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  },
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "dev": "vite build --watch",
+    "push": "vite build",
+    "deploy": "vite build",
+    "typecheck": "tsc --noEmit"
+  }
+}
