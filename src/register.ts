@@ -181,6 +181,7 @@ async function handleInfoCompletion(
     const validators: Record<string, (val: string) => string | true> = {
         user: (val) => {
             if (!val) return "用户名不能为空～";
+            if (val.length <= 1) return "用户名长度应大于 1 个字符～";
             if (val.length > 255) return "用户名长度应小于 255 个字符～";
             return true;
         },
