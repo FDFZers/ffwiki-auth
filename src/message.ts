@@ -252,18 +252,21 @@ async function handleInfo(
         case "qq":
         case "student":
         case "wiki": {
-            let info;
+            let info, dbName;
             try {
                 const { getUserInfoByQQ, getUserInfoByStudentNum, getUserInfoByWikiId } = await import("./userInfo");
                 switch (subCommand) {
                     case "qq":
                         info = getUserInfoByQQ(query);
+                        if (info) dbName = (db as Record<string, string | undefined>)[info.studentNum];
                         break;
                     case "wiki":
                         info = getUserInfoByWikiId(Number(query));
+                        if (info) dbName = (db as Record<string, string | undefined>)[info.studentNum];
                         break;
                     case "student":
                         info = getUserInfoByStudentNum(query);
+                        dbName = (db as Record<string, string | undefined>)[query];
                         break;
                 }
             } catch (e) {
@@ -271,19 +274,18 @@ async function handleInfo(
                 pluginState.logger.error(`查询 '${subCommand} - ${query}' 失败！`, e);
                 return;
             }
-            if (!info) {
+            if (!info && !dbName) {
                 await sendReply(ctx, event, "(｡-ω-) 用户不存在！");
                 return;
             }
-            const dbName = (db as Record<string, string | undefined>)[info.studentNum];
             const lines = ["===== [ 用户信息 ] ====="];
             if (isFull) {
-                lines.push(`姓名：${info.realName}`);
+                if (info) lines.push(`姓名：${info.realName}`);
                 if (dbName) lines.push(`[学生数据库] 姓名：${dbName}`);
                 else lines.push(`[学生数据库] 姓名：<未找到>`);
-                lines.push(`邮箱：${info.email}`);
+                if (info) lines.push(`邮箱：${info.email}`);
             }
-            lines.push(
+            if (info) lines.push(
                 `学号：${info.studentNum}`,
                 `QQ 号：${info.qq}`,
                 `Wiki ID：${info.wikiId}`
