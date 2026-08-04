@@ -1,4 +1,3 @@
-// message.ts
 import type { OB11Message, OB11PostSendMsg } from "napcat-types/napcat-onebot";
 import type { NapCatPluginContext } from "napcat-types/napcat-onebot/network/plugin/types";
 import { onRegistrationCmd } from "./register";
@@ -326,7 +325,7 @@ async function handleRequest(
         case "reject": {
             const message = args.slice(3).join(" ") || "";
             await sendReply(ctx, event, "请求已拒绝！");
-            await sendPrivateMessage(ctx, qq, `(╥﹏╥) 注册申请已被拒绝！${message}`);
+            await sendPrivateMessage(ctx, qq, `(╥﹏╥) 注册申请已被拒绝！原因：${message}`);
             map.delete(qq);
             break;
         }
