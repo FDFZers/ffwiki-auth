@@ -273,7 +273,7 @@ async function handleInfo(
                 pluginState.logger.error(`查询 '${subCommand} - ${query}' 失败！`, e);
                 return;
             }
-            if (!info && !dbName) {
+            if (!(info || dbName && isFull)) {
                 await sendReply(ctx, event, "(｡-ω-) 用户不存在！");
                 return;
             }
@@ -324,9 +324,7 @@ async function handleRequest(
             break;
         case "reject": {
             const message = args.slice(3).join(" ") || "";
-            await sendReply(ctx, event, "请求已拒绝！");
-            await sendPrivateMessage(ctx, qq, `(╥﹏╥) 注册申请已被拒绝！原因：${message}`);
-            map.delete(qq);
+            await rejectRequest(ctx, req, map, message);
             break;
         }
         default:
@@ -357,8 +355,29 @@ export async function approveRequest(
             `你的初始密码为：${pluginState.config.defaultPassword}`,
             "前往 https://ffwiki.top/login 登录吧！",
         ];
+        const lines2 = [
+            {
+                type: "text",
+                data: {
+                    text: "===== [ 账号创建 ] =====\n(o'v'o) 欢迎 "
+                }
+            },
+            {
+                type: "at",
+                data: {
+                    qq: req.qq!!
+                }
+            },
+            {
+                type: "text",
+                data: {
+                    text: ` 加入复旦附中 Wiki！🎉🎉🎉\n- 学号：${req.studentNum}\n- Wiki ID：${id}`
+                }
+            },
+        ] as OB11PostSendMsg["message"];
         await sendPrivateMessage(ctx, req.qq!!, lines.join("\n"));
         await sendGroupMessage(ctx, pluginState.config.adminGroup, "(o'v'o) 账号创建成功！");
+        await sendGroupMessage(ctx, pluginState.config.userGroup, lines2);
         map.delete(req.qq!!);
     } catch (e: any) {
         const errorMsg = typeof e === "string" ? e : e.message || e;
@@ -366,4 +385,15 @@ export async function approveRequest(
         await sendGroupMessage(ctx, pluginState.config.adminGroup, `(╥﹏╥) 账号创建失败：${errorMsg}`);
         map.delete(req.qq!!);
     }
+}
+
+export async function rejectRequest(
+    ctx: NapCatPluginContext,
+    req: RequestInfo,
+    map: RequestMap,
+    message: string
+): Promise<void> {
+    await sendGroupMessage(ctx, pluginState.config.adminGroup, "请求已拒绝！");
+    await sendPrivateMessage(ctx, req.qq!!, `(╥﹏╥) 注册申请已被拒绝！原因：${message}`);
+    map.delete(req.qq!!);
 }

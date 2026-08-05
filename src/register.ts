@@ -3,7 +3,14 @@ import type { OB11FriendAddNoticeEvent, OB11Message } from "napcat-types/napcat-
 import type { NapCatPluginContext } from "napcat-types/napcat-onebot/network/plugin/types";
 import { REGISTER_TIMEOUT_MS, RESEND_INTERVAL_MS, VERIFY_CODE_LENGTH } from "./constants";
 import { sendVerifyEmail } from "./email";
-import { approveRequest, sendForwardMsg, sendGroupMessage, sendPrivateMessage, sendReply } from "./message";
+import {
+    approveRequest,
+    rejectRequest,
+    sendForwardMsg,
+    sendGroupMessage,
+    sendPrivateMessage,
+    sendReply
+} from "./message";
 import { pluginState } from "./state";
 import db from "./students.json";
 import { RequestInfo, RequestMap, RequestState } from "./types";
@@ -328,8 +335,7 @@ async function handleVerification(
             return;
         }
         if (req.verifyCode !== code) {
-            getRequestMap().delete(userId);
-            await sendPrivateMessage(ctx, userId, "(╥﹏╥) 注册失败：验证码错误！");
+            await sendPrivateMessage(ctx, userId, "(╥﹏╥) 验证码错误！请重试！");
             return;
         }
         // 验证通过，进入待审核状态
@@ -371,6 +377,7 @@ async function sendApply(
 
     const dbName = (db as Record<string, string | undefined>)[req.studentNum!!];
     const matches = dbName === req.realName;
+    const conflicts = dbName !== undefined && dbName !== req.realName;
 
     const message2 = [
         `===== [ 新的注册请求 ] =====`,
@@ -390,6 +397,8 @@ async function sendApply(
 
     if (matches) {
         message2.push(`学生数据库匹配成功！正在同意请求～`);
+    } else if (conflicts) {
+        message2.push(`学生数据库不匹配！正在拒绝请求～`);
     } else {
         message2.push(
             `同意请求：${pluginState.config.commandPrefix} request approve ${req.qq}`,
@@ -398,21 +407,21 @@ async function sendApply(
 
         const message3 = [
             `===== [ 注册 - 程序审核 ] =====
-数据库匹配失败！未找到学生信息或姓名错误！你的注册请求将转至管理员审核～`,
+学生数据库内未找到学生信息！你的注册请求将转至管理员审核～`,
             `===== [ 注册 - 管理员审核 ] =====
 (o'v'o) 你的注册申请已发送给管理员！
-请耐心等待申请结果！管理员们预计在几小时至几天内审批！
+请耐心等待申请结果！管理员们预计在几分钟至几天内审批！
 审批后机器人将通过此处联系你，请留意～`
         ];
         await sendForwardMsg(ctx, userId, false, message3);
     }
 
-    const sent = await sendGroupMessage(ctx, pluginState.config.adminGroup, message2.join("\n"));
-
-    if (matches) await approveRequest(ctx, req, getRequestMap());
-
-    if (!sent) {
+    if (!await sendGroupMessage(ctx, pluginState.config.adminGroup, message2.join("\n"))) {
         getRequestMap().delete(userId);
         await sendPrivateMessage(ctx, userId, "(╥﹏╥) 注册失败：注册申请发送失败！请联系管理员～");
+        return;
     }
+
+    if (matches) await approveRequest(ctx, req, getRequestMap());
+    if (conflicts) await rejectRequest(ctx, req, getRequestMap(), "学生数据库不匹配！");
 }
