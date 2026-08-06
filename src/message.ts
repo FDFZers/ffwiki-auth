@@ -236,6 +236,7 @@ async function handleInfo(
                     `${pluginState.config.commandPrefix} info qq <qq> - 通过 QQ 号查询用户信息`,
                     `${pluginState.config.commandPrefix} info student <学号> - 通过学号查询用户信息`,
                     `${pluginState.config.commandPrefix} info name <姓名> - 通过姓名查询用户信息`,
+                    `${pluginState.config.commandPrefix} info email <邮箱> - 通过邮箱查询用户信息`,
                     `${pluginState.config.commandPrefix} info wiki <id> - 通过 Wiki ID 查询用户信息`
                 );
             } else {
@@ -244,6 +245,7 @@ async function handleInfo(
                     `${pluginState.config.commandPrefix} info student <学号> [full] - 通过学号查询用户信息`,
                     `${pluginState.config.commandPrefix} info wiki <id> [full] - 通过 Wiki ID 查询用户信息`,
                     `${pluginState.config.commandPrefix} info name <姓名> - 通过姓名查询用户完整信息`,
+                    `${pluginState.config.commandPrefix} info email <邮箱> - 通过邮箱查询用户完整信息`,
                     `注意：命令后可选择加“full”来查询完整信息`
                 );
             }
