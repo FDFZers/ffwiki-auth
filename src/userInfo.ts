@@ -3,33 +3,31 @@ import { UserInfo } from "./types";
 
 function getDataStores() {
     return {
-        infos: pluginState.getVar<UserInfo[]>("userInfos"),
-        qqMap: pluginState.getVar<Map<string, UserInfo>>("qqInfoMap"),
-        wikiMap: pluginState.getVar<Map<number, UserInfo>>("wikiInfoMap"),
         studentMap: pluginState.getVar<Map<string, UserInfo>>("studentInfoMap"),
-        emailList: pluginState.getVar<string[]>("emailList"),
+        qqMap: pluginState.getVar<Map<string, string>>("qqInfoMap"),
+        wikiMap: pluginState.getVar<Map<number, string>>("wikiInfoMap"),
+        emailMap: pluginState.getVar<Map<string, string>>("emailMap"),
     };
 }
 
 export function loadUserInfo(): void {
     const infos = pluginState.loadDataFile<UserInfo[]>("users.json", []);
-    const qqMap = new Map<string, UserInfo>();
-    const wikiMap = new Map<number, UserInfo>();
     const studentMap = new Map<string, UserInfo>();
-    const emailList: string[] = [];
+    const qqMap = new Map<string, string>();
+    const wikiMap = new Map<number, string>();
+    const emailMap = new Map<string, string>();
 
     for (const info of infos) {
-        qqMap.set(info.qq, info);
-        wikiMap.set(info.wikiId, info);
         studentMap.set(info.studentNum, info);
-        emailList.push(info.email);
+        qqMap.set(info.qq, info.studentNum);
+        wikiMap.set(info.wikiId, info.studentNum);
+        emailMap.set(info.email, info.studentNum);
     }
 
-    pluginState.setVar("userInfos", infos);
+    pluginState.setVar("studentInfoMap", studentMap);
     pluginState.setVar("qqInfoMap", qqMap);
     pluginState.setVar("wikiInfoMap", wikiMap);
-    pluginState.setVar("studentInfoMap", studentMap);
-    pluginState.setVar("emailList", emailList);
+    pluginState.setVar("emailMap", emailMap);
 }
 
 export function saveUserInfo(): void {
@@ -39,16 +37,22 @@ export function saveUserInfo(): void {
 
 export function addUserInfo(info: UserInfo): void {
     const stores = getDataStores();
-    stores.infos.push(info);
-    stores.qqMap.set(info.qq, info);
-    stores.wikiMap.set(info.wikiId, info);
     stores.studentMap.set(info.studentNum, info);
-    stores.emailList.push(info.email);
+    stores.qqMap.set(info.qq, info.studentNum);
+    stores.wikiMap.set(info.wikiId, info.studentNum);
+    stores.emailMap.set(info.email, info.studentNum);
     saveUserInfo();
 }
 
+export function getUserInfosByName(name: string): UserInfo[] {
+    return getDataStores().studentMap.values().filter(info => info.realName === name).toArray();
+}
+
 export function getUserInfoByQQ(qq: string): UserInfo | undefined {
-    return getDataStores().qqMap.get(qq);
+    const stores = getDataStores();
+    const num = stores.qqMap.get(qq);
+    if (!num) return undefined;
+    return stores.studentMap.get(num);
 }
 
 export function hasQQ(qq: string): boolean {
@@ -56,7 +60,10 @@ export function hasQQ(qq: string): boolean {
 }
 
 export function getUserInfoByWikiId(wikiId: number): UserInfo | undefined {
-    return getDataStores().wikiMap.get(wikiId);
+    const stores = getDataStores();
+    const num = stores.wikiMap.get(wikiId);
+    if (!num) return undefined;
+    return stores.studentMap.get(num);
 }
 
 export function getUserInfoByStudentNum(studentNum: string): UserInfo | undefined {
@@ -67,6 +74,13 @@ export function hasStudentNum(studentNum: string): boolean {
     return getDataStores().studentMap.has(studentNum);
 }
 
+export function getUserInfoByEmail(email: string): UserInfo | undefined {
+    const stores = getDataStores();
+    const num = stores.emailMap.get(email);
+    if (!num) return undefined;
+    return stores.studentMap.get(num);
+}
+
 export function hasEmail(email: string): boolean {
-    return getDataStores().emailList.includes(email);
+    return getDataStores().emailMap.has(email);
 }

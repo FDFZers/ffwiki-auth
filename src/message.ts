@@ -3,7 +3,8 @@ import type { NapCatPluginContext } from "napcat-types/napcat-onebot/network/plu
 import { onRegistrationCmd } from "./register";
 import { pluginState } from "./state";
 import db from "./students.json";
-import { RequestInfo, RequestMap } from "./types";
+import { RequestInfo, RequestMap, UserInfo } from "./types";
+import { getUserInfoByStudentNum, getUserInfosByName } from "./userInfo";
 import { createUser } from "./wiki";
 
 // ---------- 发送消息基础函数 ----------
@@ -216,7 +217,7 @@ async function handleInfo(
 ): Promise<void> {
     const subCommand = args[1]?.toLowerCase() || "";
     const query = args[2] || "";
-    const forceFull = isAdminGroup || (isAdmin && messageType === "private");
+    const forceFull = isAdminGroup || (isAdmin && messageType === "private") || ["name", "email"].includes(subCommand);
     const isFull = forceFull || args[3]?.toLowerCase() === "full";
 
     if (isFull && !isAdmin) {
@@ -234,6 +235,7 @@ async function handleInfo(
                 lines.push(
                     `${pluginState.config.commandPrefix} info qq <qq> - 通过 QQ 号查询用户信息`,
                     `${pluginState.config.commandPrefix} info student <学号> - 通过学号查询用户信息`,
+                    `${pluginState.config.commandPrefix} info name <姓名> - 通过姓名查询用户信息`,
                     `${pluginState.config.commandPrefix} info wiki <id> - 通过 Wiki ID 查询用户信息`
                 );
             } else {
@@ -241,6 +243,7 @@ async function handleInfo(
                     `${pluginState.config.commandPrefix} info qq <qq> [full] - 通过 QQ 号查询用户信息`,
                     `${pluginState.config.commandPrefix} info student <学号> [full] - 通过学号查询用户信息`,
                     `${pluginState.config.commandPrefix} info wiki <id> [full] - 通过 Wiki ID 查询用户信息`,
+                    `${pluginState.config.commandPrefix} info name <姓名> - 通过姓名查询用户完整信息`,
                     `注意：命令后可选择加“full”来查询完整信息`
                 );
             }
@@ -250,22 +253,43 @@ async function handleInfo(
 
         case "qq":
         case "student":
+        case "email":
         case "wiki": {
-            let info, dbName;
+            let info = undefined as UserInfo | undefined;
+            let dbInfo = undefined as [string, string] | undefined;
             try {
-                const { getUserInfoByQQ, getUserInfoByStudentNum, getUserInfoByWikiId } = await import("./userInfo");
+                const {
+                    getUserInfoByQQ,
+                    getUserInfoByStudentNum,
+                    getUserInfoByEmail,
+                    getUserInfoByWikiId
+                } = await import("./userInfo");
                 switch (subCommand) {
                     case "qq":
                         info = getUserInfoByQQ(query);
-                        if (info) dbName = (db as Record<string, string | undefined>)[info.studentNum];
+                        if (info) {
+                            const name = (db as Record<string, string | undefined>)[info.studentNum];
+                            if (name) dbInfo = [info.studentNum, name];
+                        }
+                        break;
+                    case "email":
+                        info = getUserInfoByEmail(query);
+                        if (info) {
+                            const name = (db as Record<string, string | undefined>)[info.studentNum];
+                            if (name) dbInfo = [info.studentNum, name];
+                        }
                         break;
                     case "wiki":
                         info = getUserInfoByWikiId(Number(query));
-                        if (info) dbName = (db as Record<string, string | undefined>)[info.studentNum];
+                        if (info) {
+                            const name = (db as Record<string, string | undefined>)[info.studentNum];
+                            if (name) dbInfo = [info.studentNum, name];
+                        }
                         break;
                     case "student":
                         info = getUserInfoByStudentNum(query);
-                        dbName = (db as Record<string, string | undefined>)[query];
+                        const name = (db as Record<string, string | undefined>)[query];
+                        if (name) dbInfo = [query, name];
                         break;
                 }
             } catch (e) {
@@ -273,29 +297,58 @@ async function handleInfo(
                 pluginState.logger.error(`查询 '${subCommand} - ${query}' 失败！`, e);
                 return;
             }
-            if (!(info || dbName && isFull)) {
-                await sendReply(ctx, event, "(｡-ω-) 用户不存在！");
+            if (!(info || dbInfo && isFull)) {
+                await sendReply(ctx, event, "(｡-ω-) 用户信息不存在！");
                 return;
             }
-            const lines = ["===== [ 用户信息 ] ====="];
-            if (isFull) {
-                if (info) lines.push(`姓名：${info.realName}`);
-                if (dbName) lines.push(`[学生数据库] 姓名：${dbName}`);
-                else lines.push(`[学生数据库] 姓名：<未找到>`);
-                if (info) lines.push(`邮箱：${info.email}`);
+            await sendReply(ctx, event, buildUserInfo(info, dbInfo, isFull));
+            return;
+        }
+
+        case "name": {
+            const infos = getUserInfosByName(query);
+            const dbNames = Object.entries(db)
+                .filter(([_, name]) => query === name);
+            const studentNums = [...new Set(infos.map(info => info.studentNum)
+                .concat(dbNames.map(([studentNum, _]) => studentNum)))];
+            if (studentNums.length === 0) {
+                await sendReply(ctx, event, "(｡-ω-) 用户信息不存在！");
+                return;
             }
-            if (info) lines.push(
-                `学号：${info.studentNum}`,
-                `QQ 号：${info.qq}`,
-                `Wiki ID：${info.wikiId}`
-            );
-            await sendReply(ctx, event, lines.join("\n"));
+            const messages = [
+                `===== [ 查询结果 ] =====\n查询到 ${studentNums.length} 条记录～`,
+                ...studentNums.map(studentNum => buildUserInfo(
+                    infos.find(info => info.studentNum === studentNum),
+                    dbNames.find(([num, _]) => num === studentNum),
+                    isFull
+                ))
+            ];
+            if (event.message_type == "group") await sendForwardMsg(ctx, event.group_id!!, true, messages);
+            else await sendForwardMsg(ctx, event.user_id, false, messages);
             return;
         }
 
         default:
             await sendReply(ctx, event, `无效的子命令！请使用 ${pluginState.config.commandPrefix} info help 查看帮助～`);
     }
+}
+
+function buildUserInfo(info: UserInfo | undefined, dbInfo: [string, string] | undefined = undefined, isFull: boolean = false) {
+    const lines = ["===== [ 用户信息 ] ====="];
+    if (isFull) {
+        if (dbInfo) lines.push(
+            `[学生数据库] 学号：${dbInfo[0]}`,
+            `[学生数据库] 姓名：${dbInfo[1]}`
+        );
+        else lines.push(`[学生数据库] 姓名：<未找到>`);
+        if (info) lines.push(`姓名：${info.realName}`, `邮箱：${info.email}`);
+    }
+    if (info) lines.push(
+        `学号：${info.studentNum}`,
+        `QQ 号：${info.qq}`,
+        `Wiki ID：${info.wikiId}`
+    );
+    return lines.join("\n");
 }
 
 async function handleRequest(
@@ -359,7 +412,7 @@ export async function approveRequest(
             {
                 type: "text",
                 data: {
-                    text: "===== [ 账号创建 ] =====\n(o'v'o) 欢迎 "
+                    text: "===== [ 账号创建 ] =====\n(o'v'o) 🎉 欢迎 "
                 }
             },
             {
@@ -371,7 +424,7 @@ export async function approveRequest(
             {
                 type: "text",
                 data: {
-                    text: ` 加入复旦附中 Wiki！🎉🎉🎉\n- 学号：${req.studentNum}\n- Wiki ID：${id}`
+                    text: `（${req.qq}）加入复旦附中 Wiki！\n- 学号：${req.studentNum}\n- Wiki ID：${id}`
                 }
             },
         ] as OB11PostSendMsg["message"];
