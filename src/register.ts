@@ -54,6 +54,8 @@ export async function onRegistrationCmd(
     event: OB11Message,
     args: string[]
 ): Promise<void> {
+    cleanRequests();
+
     const userId = String(event.user_id);
 
     if (event.message_type === "group") {
