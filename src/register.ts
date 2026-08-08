@@ -132,6 +132,7 @@ async function initiateRegistration(ctx: NapCatPluginContext, userId: string): P
         `===== [ 注册 ] =====`,
         "(｡·ω·｡) 正在启动注册程序......",
         "闲置 10 分钟后将自动取消注册！",
+        `在注册前，请务必查看注册指南：https://ffwiki.top/zh/%E6%8C%87%E5%8D%97/%E8%B4%A6%E5%8F%B7%E6%B3%A8%E5%86%8C%E6%8C%87%E5%8D%97`,
         `你可以随时使用“${pluginState.config.commandPrefix} register cancel”取消注册程序～`,
     ];
     const ok = await sendPrivateMessage(ctx, userId, message.join("\n"));
