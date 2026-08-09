@@ -31,8 +31,8 @@ export function loadUserInfo(): void {
 }
 
 export function saveUserInfo(): void {
-    const infos = pluginState.getVar<UserInfo[]>("userInfos");
-    pluginState.saveDataFile("users.json", infos);
+    pluginState.saveDataFile("users.json", getDataStores().studentMap.values()
+        .toArray().toSorted((a, b) => a.wikiId - b.wikiId));
 }
 
 export function addUserInfo(info: UserInfo): void {
