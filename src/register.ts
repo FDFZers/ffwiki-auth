@@ -261,7 +261,7 @@ async function sendInfoIncomplete(ctx: NapCatPluginContext, req: RequestInfo, us
 【请注意】：
  - 如果你是本部学生，请直接输入你的学号～
  - 如果你是徐汇分校学生，请将你学号中的班级 + 20，例如 20290101 -> 20292101
- - 如果你是青浦分校学生，请将你学号中的班级 + 40，例如 20290101 -> 20294101
+ - 如果你是青浦分校学生，请将你学号中的班级 + 40，并去掉第 7 位的 0，例如 202901001 -> 20294101
  - 如果你是浦东分校学生，请将你学号中的班级 + 60，例如 20290101 -> 20296101`,
         `[Wiki 用户名]：${req.wikiName || "<未设置>"}
 请发送命令“${pluginState.config.commandPrefix} register user <用户名>”${req.wikiName ? "修改" : "设置"}～`,
