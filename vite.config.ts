@@ -1,11 +1,10 @@
-import { resolve, dirname } from 'path';
-import { defineConfig } from 'vite';
-import nodeResolve from '@rollup/plugin-node-resolve';
-import { builtinModules } from 'module';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
-import { execSync } from 'child_process';
-import { napcatHmrPlugin } from 'napcat-plugin-debug-cli/vite';
+import nodeResolve from "@rollup/plugin-node-resolve";
+import fs from "fs";
+import { builtinModules } from "module";
+import { napcatHmrPlugin } from "napcat-plugin-debug-cli/vite";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
+import { defineConfig } from "vite";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,10 +43,10 @@ function copyDirRecursive(src: string, dest: string) {
  */
 function copyAssetsPlugin() {
     return {
-        name: 'copy-assets',
+        name: "copy-assets",
         writeBundle() {
             try {
-                const distDir = resolve(__dirname, 'dist');
+                const distDir = resolve(__dirname, "dist");
 
                 // 1. 构建 WebUI 前端
                 // const webuiRoot = resolve(__dirname, 'src/webui');
@@ -86,9 +85,9 @@ function copyAssetsPlugin() {
                 // }
 
                 // 3. 生成精简的 package.json（只保留运行时必要字段）
-                const pkgPath = resolve(__dirname, 'package.json');
+                const pkgPath = resolve(__dirname, "package.json");
                 if (fs.existsSync(pkgPath)) {
-                    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+                    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
                     const distPkg: Record<string, unknown> = {
                         name: pkg.name,
                         plugin: pkg.plugin,
@@ -103,22 +102,22 @@ function copyAssetsPlugin() {
                         distPkg.napcat = pkg.napcat;
                     }
                     fs.writeFileSync(
-                        resolve(distDir, 'package.json'),
+                        resolve(distDir, "package.json"),
                         JSON.stringify(distPkg, null, 2)
                     );
-                    console.log('[copy-assets] (o\'v\'o) 已生成精简 package.json');
+                    console.log("[copy-assets] (o'v'o) 已生成精简 package.json");
                 }
 
                 // 4. 复制 templates 目录（如果存在）
-                const templatesSrc = resolve(__dirname, 'templates');
+                const templatesSrc = resolve(__dirname, "templates");
                 if (fs.existsSync(templatesSrc)) {
-                    copyDirRecursive(templatesSrc, resolve(distDir, 'templates'));
-                    console.log('[copy-assets] (o\'v\'o) 已复制 templates 目录');
+                    copyDirRecursive(templatesSrc, resolve(distDir, "templates"));
+                    console.log("[copy-assets] (o'v'o) 已复制 templates 目录");
                 }
 
-                console.log('[copy-assets] (*\'v\'*) 资源复制完成！');
+                console.log("[copy-assets] (*'v'*) 资源复制完成！");
             } catch (error) {
-                console.error('[copy-assets] (;_;) 资源复制失败:', error);
+                console.error("[copy-assets] (;_;) 资源复制失败:", error);
             }
         },
     };
@@ -126,16 +125,16 @@ function copyAssetsPlugin() {
 
 export default defineConfig({
     resolve: {
-        conditions: ['node', 'default'],
+        conditions: ["node", "default"],
     },
     build: {
         sourcemap: false,
-        target: 'esnext',
+        target: "esnext",
         minify: false,
         lib: {
-            entry: resolve(__dirname, 'src/index.ts'),
-            formats: ['es'],
-            fileName: () => 'index.mjs',
+            entry: resolve(__dirname, "src/index.ts"),
+            formats: ["es"],
+            fileName: () => "index.mjs",
         },
         rollupOptions: {
             external: [...nodeModules, ...external],
@@ -143,10 +142,10 @@ export default defineConfig({
                 inlineDynamicImports: true,
             },
         },
-        outDir: 'dist',
+        outDir: "dist",
     },
     plugins: [nodeResolve(), copyAssetsPlugin(), napcatHmrPlugin({
-        wsUrl: "ws://ffwiki.top:8999",
-        token: "c3582277c57d"
+        wsUrl: "ws://fdfz.top:7001",
+        token: process.env.NAPCAT_TOKEN
     })],
 });

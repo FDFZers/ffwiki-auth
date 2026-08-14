@@ -4,7 +4,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
     commandPrefix: "/ffwiki",
     userGroup: "1094279643",
     adminGroup: "764847802",
-    smtpHost: "smtp.qq.com",
+    smtpHost: "smtp.fdfz.top",
     smtpPort: 465,
     smtpSecure: true,
     smtpEmail: "",
