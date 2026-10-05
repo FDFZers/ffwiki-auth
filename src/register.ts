@@ -16,6 +16,36 @@ import db from "./students.json";
 import { RequestInfo, RequestMap, RequestState } from "./types";
 import { hasEmail, hasStudentNum } from "./userInfo";
 
+// ---------- 辅助：注册信息验证 ----------
+export const RegisterValidators: Record<string, (val: string) => string | true> = {
+    user: (val) => {
+        if (!val) return "用户名不能为空～";
+        if (val.length <= 1) return "用户名长度应大于 1 个字符～";
+        if (val.length > 255) return "用户名长度应小于 255 个字符～";
+        return true;
+    },
+    email: (val) => {
+        if (!val) return "邮箱不能为空～";
+        if (val.length > 255) return "邮箱长度应小于 255 个字符～";
+        if (!/^[\w\-.]+@([\w-]+\.)+[\w-]{2,}$/.test(val)) return "邮箱格式错误～";
+        if (hasEmail(val)) return "此邮箱已存在～";
+        return true;
+    },
+    name: (val) => {
+        if (!val) return "姓名不能为空～";
+        if (val.length <= 1) return "姓名长度应大于 1 个字符～";
+        if (val.length > 6) return "姓名长度应小于 6 个字符～";
+        if (!/^[\u4e00-\u9fff\u00b7]+$/.test(val)) return "姓名应为中文字符～";
+        return true;
+    },
+    student: (val) => {
+        if (!val) return "学号不能为空～";
+        if (!/^\d{8}$/.test(val)) return "学号格式错误～";
+        if (hasStudentNum(val)) return "此学号已存在～";
+        return true;
+    },
+};
+
 // ---------- 辅助：请求管理 ----------
 export function loadRequests(): void {
     pluginState.setVar("requests", new Map<string, RequestInfo>());
@@ -188,36 +218,7 @@ async function handleInfoCompletion(
     const subCmd = args[1]?.toLowerCase() || "";
     const value = args.slice(2).join(" ").trim();
 
-    const validators: Record<string, (val: string) => string | true> = {
-        user: (val) => {
-            if (!val) return "用户名不能为空～";
-            if (val.length <= 1) return "用户名长度应大于 1 个字符～";
-            if (val.length > 255) return "用户名长度应小于 255 个字符～";
-            return true;
-        },
-        email: (val) => {
-            if (!val) return "邮箱不能为空～";
-            if (val.length > 255) return "邮箱长度应小于 255 个字符～";
-            if (!/^[\w\-.]+@([\w-]+\.)+[\w-]{2,}$/.test(val)) return "邮箱格式错误～";
-            if (hasEmail(val)) return "此邮箱已存在～";
-            return true;
-        },
-        name: (val) => {
-            if (!val) return "姓名不能为空～";
-            if (val.length <= 1) return "姓名长度应大于 1 个字符～";
-            if (val.length > 6) return "姓名长度应小于 6 个字符～";
-            if (!/^[\u4e00-\u9fff\u00b7]+$/.test(val)) return "姓名应为中文字符～";
-            return true;
-        },
-        student: (val) => {
-            if (!val) return "学号不能为空～";
-            if (!/^\d{8}$/.test(val)) return "学号格式错误～";
-            if (hasStudentNum(val)) return "此学号已存在～";
-            return true;
-        },
-    };
-
-    const validator = validators[subCmd];
+    const validator = RegisterValidators[subCmd];
     if (!validator) {
         await sendPrivateMessage(ctx, userId, "(╥﹏╥) 无效的子命令！");
         return;

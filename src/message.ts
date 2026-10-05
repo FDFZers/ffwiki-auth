@@ -1,11 +1,11 @@
-import type { OB11Message, OB11PostSendMsg } from "napcat-types/napcat-onebot";
-import type { NapCatPluginContext } from "napcat-types/napcat-onebot/network/plugin/types";
-import { onRegistrationCmd } from "./register";
-import { pluginState } from "./state";
+import type {OB11Message, OB11PostSendMsg} from "napcat-types/napcat-onebot";
+import type {NapCatPluginContext} from "napcat-types/napcat-onebot/network/plugin/types";
+import {onRegistrationCmd, RegisterValidators} from "./register";
+import {pluginState} from "./state";
 import db from "./students.json";
-import { RequestInfo, RequestMap, UserInfo } from "./types";
-import { getUserInfoByStudentNum, getUserInfosByName } from "./userInfo";
-import { createUser } from "./wiki";
+import {RequestInfo, RequestMap, RequestState, UserInfo} from "./types";
+import {getUserInfoByStudentNum, getUserInfosByName} from "./userInfo";
+import {createUser} from "./wiki";
 
 // ---------- 发送消息基础函数 ----------
 type SendTarget = { message_type: "private"; user_id: string } | { message_type: "group"; group_id: string };
@@ -19,8 +19,8 @@ async function sendMessage(
         const params: OB11PostSendMsg = {
             message,
             message_type: target.message_type,
-            ...(target.message_type === "group" ? { group_id: target.group_id } : {}),
-            ...(target.message_type === "private" ? { user_id: target.user_id } : {}),
+            ...(target.message_type === "group" ? {group_id: target.group_id} : {}),
+            ...(target.message_type === "private" ? {user_id: target.user_id} : {}),
         };
         await ctx.actions.call("send_msg", params, ctx.adapterName, ctx.pluginManager.config);
         return true;
@@ -37,8 +37,8 @@ export async function sendReply(
 ): Promise<boolean> {
     const target: SendTarget =
         event.message_type === "group"
-            ? { message_type: "group", group_id: String(event.group_id!) }
-            : { message_type: "private", user_id: String(event.user_id!) };
+            ? {message_type: "group", group_id: String(event.group_id!)}
+            : {message_type: "private", user_id: String(event.user_id!)};
     return sendMessage(ctx, target, message);
 }
 
@@ -47,7 +47,7 @@ export async function sendGroupMessage(
     groupId: number | string,
     message: OB11PostSendMsg["message"]
 ): Promise<boolean> {
-    return sendMessage(ctx, { message_type: "group", group_id: String(groupId) }, message);
+    return sendMessage(ctx, {message_type: "group", group_id: String(groupId)}, message);
 }
 
 export async function sendPrivateMessage(
@@ -55,7 +55,7 @@ export async function sendPrivateMessage(
     userId: number | string,
     message: OB11PostSendMsg["message"]
 ): Promise<boolean> {
-    return sendMessage(ctx, { message_type: "private", user_id: String(userId) }, message);
+    return sendMessage(ctx, {message_type: "private", user_id: String(userId)}, message);
 }
 
 // ---------- 合并转发 ----------
@@ -76,7 +76,7 @@ export async function sendForwardMsgNodes(
 ): Promise<boolean> {
     try {
         const actionName = isGroup ? "send_group_forward_msg" : "send_private_forward_msg";
-        const params: Record<string, unknown> = { message: nodes };
+        const params: Record<string, unknown> = {message: nodes};
         if (isGroup) params.group_id = String(target);
         else params.user_id = String(target);
         await ctx.actions.call(
@@ -114,7 +114,7 @@ export async function checkIsAdmin(event: OB11Message): Promise<boolean> {
     const admins = await pluginState.getVarOrSetAsync<string[]>("admins", async () => {
         const res = (await pluginState.ctx.actions.call(
             "get_group_member_list",
-            { group_id: pluginState.config.adminGroup },
+            {group_id: pluginState.config.adminGroup},
             pluginState.ctx.adapterName,
             pluginState.ctx.pluginManager.config
         )) as { user_id: number | string }[];
@@ -145,7 +145,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
         switch (cmd) {
             case "help":
-                await handleHelp(ctx, event, prefix, isUserGroup, isAdminGroup);
+                await handleHelp(ctx, event, prefix, isUserGroup, isAdminGroup, isAdmin);
                 break;
 
             case "register":
@@ -158,6 +158,10 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
             case "request":
                 await handleRequest(ctx, event, args, isAdminGroup);
+                break;
+
+            case "create":
+                await handleCreate(ctx, event, args, isAdmin);
                 break;
 
             default:
@@ -174,7 +178,8 @@ async function handleHelp(
     event: OB11Message,
     prefix: string,
     isUserGroup: boolean,
-    isAdminGroup: boolean
+    isAdminGroup: boolean,
+    isAdmin: boolean,
 ): Promise<void> {
     const lines = [
         `===== [ 机器人帮助 ] =====`,
@@ -183,6 +188,7 @@ async function handleHelp(
     ];
     if (isUserGroup) lines.push(`${prefix} register - 申请注册复旦附中 Wiki 账号`);
     if (isAdminGroup) lines.push(`${prefix} request - 处理注册申请`);
+    if (isAdmin) lines.push(`${prefix} create - 创建复旦附中 Wiki 账号`);
     await sendReply(ctx, event, lines.join("\n"));
 }
 
@@ -199,13 +205,27 @@ async function handleRegister(
         return;
     }
     // 检查是否已绑定
-    const { hasQQ } = await import("./userInfo");
+    const {hasQQ} = await import("./userInfo");
     if (hasQQ(userId)) {
         await sendReply(ctx, event, "你已绑定复旦附中 Wiki 账号！");
         return;
     }
     await onRegistrationCmd(ctx, event, args);
 }
+
+async function handleCreate(
+    ctx: NapCatPluginContext,
+    event: OB11Message,
+    args: string[],
+    isAdmin: boolean
+): Promise<void> {
+    if (!isAdmin) {
+        await sendReply(ctx, event, "权限不足：只有管理员才能使用此命令哦～");
+        return;
+    }
+    await createAccount(ctx, event, args[1], args[2], args[3], args[4], args[5]);
+}
+
 
 async function handleInfo(
     ctx: NapCatPluginContext,
@@ -396,7 +416,7 @@ export async function approveRequest(
     await sendPrivateMessage(ctx, req.qq!!, "(o'v'o) 注册申请已通过！正在创建账号...");
     try {
         const id = await createUser(req);
-        const { addUserInfo } = await import("./userInfo");
+        const {addUserInfo} = await import("./userInfo");
         addUserInfo({
             wikiId: id,
             qq: req.qq!!,
@@ -451,4 +471,46 @@ export async function rejectRequest(
     await sendGroupMessage(ctx, pluginState.config.adminGroup, "请求已拒绝！");
     await sendPrivateMessage(ctx, req.qq!!, `(╥﹏╥) 注册申请已被拒绝！原因：${message}`);
     map.delete(req.qq!!);
+}
+
+export async function createAccount(
+    ctx: NapCatPluginContext,
+    event: OB11Message,
+    username: string,
+    qq: string,
+    email: string,
+    studentNum: string,
+    realName: string
+) {
+    const usernameValidation = RegisterValidators.user(username);
+    if (!usernameValidation) {
+        await sendReply(ctx, event, `(╥﹏╥) 无效的用户名！${usernameValidation}`);
+        return;
+    }
+    const emailValidation = RegisterValidators.email(email);
+    if (!emailValidation) {
+        await sendReply(ctx, event, `(╥﹏╥) 无效的邮箱！${emailValidation}`);
+        return;
+    }
+    const studentNumValidation = RegisterValidators.student(studentNum);
+    if (!studentNumValidation) {
+        await sendReply(ctx, event, `(╥﹏╥) 无效的学号！${studentNumValidation}`);
+        return;
+    }
+    const realNameValidation = RegisterValidators.name(realName);
+    if (!realNameValidation) {
+        await sendReply(ctx, event, `(╥﹏╥) 无效的姓名！${realNameValidation}`);
+        return;
+    }
+
+    const map = pluginState.getVar<RequestMap>("requests");
+    await approveRequest(ctx, {
+        wikiName: username,
+        qq,
+        email,
+        realName,
+        studentNum,
+        state: RequestState.Pending,
+        updateTime: 0,
+    }, map)
 }
